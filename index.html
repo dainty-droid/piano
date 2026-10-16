@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>계이름 연습장</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#b23a3f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="계이름">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#eef0f4; --surface:#ffffff; --ink:#1c2230; --muted:#5d6577; --line:#c9cdd8;
+  --accent:#b23a3f; --good:#2f8a5b; --good-soft:#e2f2e9; --bad:#c2413f; --bad-soft:#f8e1e0;
+  --key:#fbfbfd; --key-edge:#cfd3dc; --key-shadow:#b9bdc8; --staff:#1c2230;
+  --bkey:#272b36; --bkey-shadow:#000000; --bkey-edge:#000000;
+  --pick:#eadd8f; --pick-ink:#7a6a10;
+  --display:"Do Hyeon","IBM Plex Sans KR",system-ui,sans-serif;
+  --body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141821; --surface:#1d2230; --ink:#e8eaf0; --muted:#9aa2b4; --line:#343b4d;
+  --accent:#e0676b; --good:#5cc08b; --good-soft:#1f3529; --bad:#ef6f6c; --bad-soft:#3c2224;
+  --key:#2a3042; --key-edge:#3c4459; --key-shadow:#0d1017; --staff:#e8eaf0;
+  --bkey:#06070a; --bkey-shadow:#000000; --bkey-edge:#000000;
+  --pick:#6b5e1f; --pick-ink:#f3e8a8; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-top:calc(18px + env(safe-area-inset-top,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));
+  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:520px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spacing:.5px}
+.sub{color:var(--muted);font-size:13px}
+.modes{display:flex;gap:6px}
+.modes button{flex:1;appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  font:inherit;font-size:13px;padding:9px 6px;border-radius:10px;cursor:pointer}
+.modes button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 6px}
+.stat b{display:block;font-size:19px;font-variant-numeric:tabular-nums}
+.stat span{font-size:10.5px;color:var(--muted);letter-spacing:.2px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 6px 4px;position:relative;min-height:84px}
+.card svg{display:block;width:100%;height:auto}
+.prompt{display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:28px 10px 20px;text-align:center}
+.prompt.show{display:flex}
+.prompt .big{font-family:var(--display);font-size:40px;letter-spacing:.5px}
+.prompt .small{font-size:12.5px;color:var(--muted)}
+.picked{display:flex;gap:6px;min-height:18px;justify-content:center}
+.picked span{background:var(--pick);color:var(--pick-ink);border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700}
+.feedback{position:absolute;right:12px;top:10px;font-weight:700;font-size:15px;padding:4px 10px;border-radius:999px;opacity:0;transition:opacity .15s}
+.feedback.show{opacity:1}
+.feedback.good{background:var(--good-soft);color:var(--good)}
+.feedback.bad{background:var(--bad-soft);color:var(--bad)}
+.replay{position:absolute;left:12px;top:10px;appearance:none;border:1px solid var(--line);background:var(--surface);
+  color:var(--muted);border-radius:999px;width:32px;height:32px;font-size:15px;cursor:pointer;line-height:1;z-index:2}
+.replay:active{transform:scale(.92)}
+.keyboard{position:relative}
+.whites{display:grid;grid-template-columns:repeat(15,1fr);gap:2px}
+.wkey{appearance:none;border:1px solid var(--key-edge);background:var(--key);color:var(--ink);
+  border-radius:0 0 7px 7px;height:120px;font-family:var(--display);font-size:13px;cursor:pointer;
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;
+  box-shadow:0 4px 0 var(--key-shadow);transition:transform .06s, box-shadow .06s, background .15s}
+.wkey:active{transform:translateY(3px);box-shadow:0 1px 0 var(--key-shadow)}
+.wkey.good,.wkey.reveal{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.wkey.bad{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.wkey.on{background:var(--pick);color:var(--pick-ink);border-color:var(--pick-ink)}
+.blacks{position:absolute;top:0;left:0;right:0;height:66px;pointer-events:none}
+.bkey{position:absolute;width:4.6%;height:100%;transform:translateX(-50%);pointer-events:auto;
+  appearance:none;border:1px solid var(--bkey-edge);background:var(--bkey);color:#fff;border-radius:0 0 4px 4px;
+  font-size:10.5px;line-height:1.15;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:6px;box-shadow:0 3px 0 var(--bkey-shadow);transition:transform .06s, box-shadow .06s, background .15s}
+.bkey:active{transform:translateX(-50%) translateY(2px);box-shadow:0 1px 0 var(--bkey-shadow)}
+.bkey.good,.bkey.reveal{background:var(--good);color:#06240f}
+.bkey.bad{background:var(--bad);color:#2a0606}
+.bkey.on{background:var(--pick);color:var(--pick-ink)}
+.settings{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.row > label{font-size:12px;color:var(--muted);min-width:52px;letter-spacing:.3px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{appearance:none;border:0;background:transparent;color:var(--ink);font:inherit;font-size:13px;padding:7px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.hint{font-size:12px;color:var(--muted);line-height:1.6;margin:0}
+.reset{appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer;margin-left:auto}
+.weak{font-size:12px;color:var(--muted);margin:0}
+.weak b{color:var(--ink)}
+.mistakes{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.mistakes-head{display:flex;align-items:center;gap:8px}
+.mistakes-head b{font-size:13px}
+.mistake-list{display:flex;flex-direction:column;max-height:260px;overflow-y:auto}
+.mistake-row{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:7px 2px;border-bottom:1px solid var(--line)}
+.mistake-row:last-child{border-bottom:none}
+.mistake-q{font-weight:700}
+.mistake-a{color:var(--muted);text-align:right;white-space:nowrap}
+.toggle-link{appearance:none;border:0;background:transparent;color:var(--accent);font:inherit;font-size:13px;cursor:pointer;padding:0;text-decoration:underline}
+.only-staff[hidden],.only-chord[hidden]{display:none}
+.wkey[hidden],.bkey[hidden]{display:none}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>계이름 연습장</h1>
+    <span class="sub">건반을 눌러서 맞혀요</span>
+  </header>
+  <div class="modes" id="segMode">
+    <button data-v="staff" aria-pressed="true" type="button">악보 읽기</button>
+    <button data-v="letter" aria-pressed="false" type="button">음이름 매칭</button>
+    <button data-v="chord" aria-pressed="false" type="button">코드 찾기</button>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="sScore">0 / 0</b><span>맞힘 / 시도</span></div>
+    <div class="stat"><b id="sRate">-</b><span>정답률</span></div>
+    <div class="stat"><b id="sStreak">0</b><span>연속 정답</span></div>
+    <div class="stat"><b id="sBest">0</b><span>최고 연속</span></div>
+  </div>
+  <div class="card">
+    <button class="replay" id="replay" type="button" title="다시 듣기" aria-label="다시 듣기">🔊</button>
+    <div class="feedback" id="fb"></div>
+    <svg id="staff" viewBox="0 0 320 190" role="img" aria-label="오선 위의 음표"></svg>
+    <div class="prompt" id="prompt">
+      <div class="big" id="promptBig"></div>
+      <div class="small" id="promptSmall"></div>
+      <div class="picked" id="picked"></div>
+    </div>
+  </div>
+  <div class="keyboard">
+    <div class="whites" id="whites"></div>
+    <div class="blacks" id="blacks"></div>
+  </div>
+  <p class="weak" id="weak"></p>
+  <div class="mistakes">
+    <div class="mistakes-head">
+      <b>오답노트</b>
+      <button class="toggle-link" id="mistakeToggle" type="button">0개 보기</button>
+      <button class="reset" id="clearMistakes" type="button">오답노트 지우기</button>
+    </div>
+    <div class="mistake-list" id="mistakeList" hidden></div>
+  </div>
+  <div class="settings">
+    <div class="row only-staff" id="rowClef"><label>자리표</label>
+      <div class="seg" id="segClef">
+        <button data-v="bass" aria-pressed="true">낮은음</button>
+        <button data-v="treble" aria-pressed="false">높은음</button>
+        <button data-v="mix" aria-pressed="false">섞어서</button>
+      </div>
+    </div>
+    <div class="row only-staff" id="rowKey"><label>조표</label>
+      <div class="seg" id="segKey">
+        <button data-v="C" aria-pressed="true">다장조(없음)</button>
+        <button data-v="G" aria-pressed="false">사장조(♯1)</button>
+        <button data-v="D" aria-pressed="false">라장조(♯2)</button>
+        <button data-v="A" aria-pressed="false">가장조(♯3)</button>
+        <button data-v="F" aria-pressed="false">바장조(♭1)</button>
+      </div>
+    </div>
+    <div class="row only-staff" id="rowLedger"><label>덧줄</label>
+      <div class="seg" id="segLedger">
+        <button data-v="0" aria-pressed="false">빼기</button>
+        <button data-v="1" aria-pressed="true">넣기</button>
+      </div>
+    </div>
+    <div class="row only-chord" id="rowQuality"><label>코드</label>
+      <div class="seg" id="segQuality">
+        <button data-v="major" aria-pressed="false">메이저만</button>
+        <button data-v="minor" aria-pressed="false">마이너만</button>
+        <button data-v="mix" aria-pressed="true">섞어서</button>
+      </div>
+    </div>
+    <div class="row"><label>소리</label>
+      <div class="seg" id="segSound">
+        <button data-v="1" aria-pressed="true">켜기</button>
+        <button data-v="0" aria-pressed="false">끄기</button>
+      </div>
+      <button class="reset" id="reset">기록 초기화</button>
+    </div>
+    <p class="hint" id="hint"></p>
+  </div>
+</div>
+<script>
+(function(){
+  const NAMES=['도','레','미','파','솔','라','시'];
+  const SEMI=[0,2,4,5,7,9,11];
+  const ENGLISH=['C','D','E','F','G','A','B'];
+  // 조표: 각 장조에서 반음 올리는(sharps) / 내리는(flats) 음이름(도=0..시=6).
+  const KEYSIG={
+    C:{sharps:[],      flats:[],  label:'다장조(조표 없음)'},
+    G:{sharps:[3],     flats:[],  label:'사장조(♯1개)'},
+    D:{sharps:[3,0],   flats:[],  label:'라장조(♯2개)'},
+    A:{sharps:[3,0,4], flats:[],  label:'가장조(♯3개)'},
+    F:{sharps:[],      flats:[6], label:'바장조(♭1개)'},
+  };
+  const S=8, BOTTOM_Y=124;
+  const CLEF={
+    bass:{bottom:18, range:[14,30], plain:[17,27], sharpsAt:[24,21,25], flatAt:20},
+    treble:{bottom:30, range:[26,42], plain:[29,39], sharpsAt:[38,35,39], flatAt:34}
+  };
+  const st={mode:'staff',clef:'bass',key:'C',ledger:true,sound:true,quality:'mix',
+    cur:null,last:null,locked:false,picked:[],
+    right:0,total:0,streak:0,best:0,weights:{}};
+  function load(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
+  function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+  st.best=load('nq_best',0); st.weights=load('nq_w',{});
+  const prefs=load('nq_prefs',null); if(prefs)Object.assign(st,prefs);
+
+  // ---------- 조표(키시그니처): 어떤 음이름이 몇 반음(acc) 바뀌는지 ----------
+  function keysigAcc(degree){
+    const ks=KEYSIG[st.key];
+    if(ks.sharps.includes(degree))return 1;
+    if(ks.flats.includes(degree))return -1;
+    return 0;
+  }
+  // 코드 3화음 계산: root(음이름 0~6) + quality('major'|'minor') -> [{letter,acc}, x3]
+  function accidentalFor(rootLetter, targetLetter, targetInterval){
+    const natural=((SEMI[targetLetter]-SEMI[rootLetter])%12+12)%12;
+    return targetInterval-natural; // 보통 -1/0/1 (3화음 범위에서는 항상 이 범위)
+  }
+  function triadFor(root, quality){
+    const thirdLetter=(root+2)%7, fifthLetter=(root+4)%7;
+    const thirdInt=quality==='major'?4:3;
+    return [
+      {letter:root, acc:0},
+      {letter:thirdLetter, acc:accidentalFor(root,thirdLetter,thirdInt)},
+      {letter:fifthLetter, acc:accidentalFor(root,fifthLetter,7)},
+    ];
+  }
+  const accMark=a=>a===1?'♯':a===-1?'♭':'';
+  const noteLabel=(letter,acc)=>NAMES[letter]+accMark(acc);
+
+  // ---------- 건반(화이트/블랙) 만들기 ----------
+  // 한 옥타브 위까지 2옥타브로 확장(관리자님 요청, 2026-10-17 - "솔이나 라 코드 찾기가
+  // 헷갈리네": 솔/라/시가 근음인 코드는 3도나 5도가 옥타브를 넘어가서, 1옥타브짜리
+  // 건반에서는 그 음을 낮은 '레/미/파' 자리를 눌러야 했음 - 실제로는 근음보다 위에 있는
+  // 음인데 건반에서는 왼쪽(낮은 쪽)을 눌러야 해서 헷갈렸던 것. 옥타브를 늘려서 오름차순
+  // 그대로 누를 수 있게 함. 채점은 지금처럼 옥타브 무관(음이름만) - 같은 음이름이면 어느
+  // 옥타브의 건반을 눌러도 정답으로 인정하되, 소리는 실제 누른 옥타브로 재생한다.
+  // 건반은 항상 2옥타브(15개)로 만들어두고, 모드에 따라 몇 옥타브까지 보여줄지만
+  // 바꾼다(관리자님 요청, 2026-10-17 - "악보 읽기랑 음이름 매칭은 1옥타브만, 코드
+  // 찾기만 지금처럼" - 코드 찾기만 솔/라/시 근음 코드에서 옥타브 넘어가는 음이
+  // 헷갈려서 2옥타브가 필요했고, 나머지 두 모드는 원래부터 1옥타브로 충분함).
+  const OCTAVES=2, TOTAL_WHITE=OCTAVES*7+1; // 15개(도~도~도)
+  const whitesWrap=document.getElementById('whites'), blacksWrap=document.getElementById('blacks');
+  const whiteKeys=[]; // {btn, idx}
+  for(let idx=0; idx<TOTAL_WHITE; idx++){
+    const letter=idx%7, octave=5+Math.floor(idx/7);
+    const b=document.createElement('button'); b.type='button'; b.className='wkey';
+    b.textContent=NAMES[letter];
+    b.addEventListener('click',()=>pressKey(letter, 0, null, octave));
+    whitesWrap.appendChild(b); whiteKeys.push({btn:b, idx});
+  }
+  // 블랙키 간격 패턴(한 옥타브 안에서, 도-레/레-미/파-솔/솔-라/라-시 사이에만 있음) -
+  // 이 패턴을 옥타브 수만큼 반복해서 배치한다. left%는 지금 보여주는 흰건반 칸 수 기준으로
+  // relayoutKeyboard()가 모드 바뀔 때마다 다시 계산한다(1옥타브만 보일 땐 8칸 기준으로).
+  const GAP_PATTERN=[{after:0,sharp:0,flat:1},{after:1,sharp:1,flat:2},{after:3,sharp:3,flat:4},{after:4,sharp:4,flat:5},{after:5,sharp:5,flat:6}];
+  const blackKeys=[]; // {btn, sharpDeg, flatDeg, oct, afterIdx}
+  for(let oct=0; oct<OCTAVES; oct++){
+    GAP_PATTERN.forEach(g=>{
+      const afterIdx=g.after+oct*7, octave=5+oct;
+      const b=document.createElement('button'); b.type='button'; b.className='bkey';
+      // 검은 건반은 실제 피아노처럼 글자 표시 없이 비워둠(관리자님 요청, 2026-10-16)
+      b.addEventListener('click',()=>pressKey(g.sharp,1,g.flat,octave));
+      blacksWrap.appendChild(b);
+      blackKeys.push({btn:b, sharpDeg:g.sharp, flatDeg:g.flat, oct, afterIdx});
+    });
+  }
+  function relayoutKeyboard(mode){
+    const activeOctaves = mode==='chord' ? OCTAVES : 1;
+    const activeTotalWhite = activeOctaves*7+1;
+    whitesWrap.style.gridTemplateColumns='repeat('+activeTotalWhite+',1fr)';
+    whiteKeys.forEach(k=>{ k.btn.hidden = k.idx>=activeTotalWhite; });
+    blackKeys.forEach(k=>{
+      k.btn.hidden = k.oct>=activeOctaves;
+      k.btn.style.left=((k.afterIdx+1)*100/activeTotalWhite)+'%';
+    });
+  }
+  function clearKeyStyles(){
+    whiteKeys.forEach(k=>k.btn.classList.remove('good','bad','reveal','on'));
+    blackKeys.forEach(k=>k.btn.classList.remove('good','bad','reveal','on'));
+  }
+  function styleKey(letter,acc,cls){
+    if(acc===0){ whiteKeys[letter].btn.classList.add(cls); return; }
+    const bk=blackKeys.find(k=> (acc===1&&k.sharpDeg===letter) || (acc===-1&&k.flatDeg===letter) );
+    if(bk)bk.btn.classList.add(cls);
+  }
+
+  // ---------- 오선 그리기 (악보 읽기 모드) ----------
+  const svg=document.getElementById('staff'), NS='http://www.w3.org/2000/svg';
+  function el(tag,a){const e=document.createElementNS(NS,tag);for(const k in a)e.setAttribute(k,a[k]);return e}
+  const yOf=(d,b)=>BOTTOM_Y-(d-b)*S;
+  function drawBass(g){
+    g.appendChild(el('path',{d:'M22 77 c-1-11 9-17 19-14 c12 4 13 20 7 31 c-6 11-17 19-30 25',fill:'none',stroke:'var(--staff)','stroke-width':'3.6','stroke-linecap':'round'}));
+    g.appendChild(el('circle',{cx:'23',cy:'77',r:'5',fill:'var(--staff)'}));
+    g.appendChild(el('circle',{cx:'56',cy:'70',r:'2.6',fill:'var(--staff)'}));
+    g.appendChild(el('circle',{cx:'56',cy:'82',r:'2.6',fill:'var(--staff)'}));
+  }
+  function drawTreble(g){
+    g.appendChild(el('path',{d:'M36 108 C28 104 30 92 40 92 C52 92 56 108 44 116 C32 124 16 114 18 96 C20 78 38 66 44 52 C50 38 46 24 42 24 C36 24 32 40 36 60 L42 140 C43 152 28 154 26 144',fill:'none',stroke:'var(--staff)','stroke-width':'3','stroke-linecap':'round','stroke-linejoin':'round'}));
+    g.appendChild(el('circle',{cx:'29',cy:'143',r:'4.5',fill:'var(--staff)'}));
+  }
+  function drawSharp(g,x,y){
+    const c='var(--staff)';
+    g.appendChild(el('line',{x1:x-2,y1:y-11,x2:x-2,y2:y+11,stroke:c,'stroke-width':'1.4'}));
+    g.appendChild(el('line',{x1:x+3,y1:y-12,x2:x+3,y2:y+10,stroke:c,'stroke-width':'1.4'}));
+    g.appendChild(el('line',{x1:x-6,y1:y-2,x2:x+7,y2:y-5,stroke:c,'stroke-width':'3'}));
+    g.appendChild(el('line',{x1:x-6,y1:y+5,x2:x+7,y2:y+2,stroke:c,'stroke-width':'3'}));
+  }
+  function drawFlat(g,x,y){
+    g.appendChild(el('text',{x:x-5,y:y+6,'font-size':'19',fill:'var(--staff)','font-family':'serif'})).textContent='♭';
+  }
+  function renderStaff(){
+    const {clef,d}=st.cur, C=CLEF[clef];
+    while(svg.firstChild)svg.removeChild(svg.firstChild);
+    const g=el('g',{});
+    for(let i=0;i<5;i++){const y=BOTTOM_Y-i*2*S;g.appendChild(el('line',{x1:8,y1:y,x2:312,y2:y,stroke:'var(--staff)','stroke-width':'1.3'}))}
+    g.appendChild(el('line',{x1:8,y1:BOTTOM_Y-8*S,x2:8,y2:BOTTOM_Y,stroke:'var(--staff)','stroke-width':'1.3'}));
+    clef==='bass'?drawBass(g):drawTreble(g);
+    let x=78;
+    const ks=KEYSIG[st.key];
+    ks.sharps.forEach(sd=>{
+      const atList=CLEF[clef].sharpsAt;
+      const pos = sd===3?atList[0]: sd===0?atList[1]: atList[2];
+      drawSharp(g,x,yOf(pos,C.bottom)); x+=15;
+    });
+    ks.flats.forEach(()=>{ drawFlat(g,x,yOf(C.flatAt,C.bottom)); x+=15; });
+    const nx=210, ny=yOf(d,C.bottom), top=C.bottom+8;
+    for(let k=C.bottom-2;k>=d;k-=2)g.appendChild(el('line',{x1:nx-16,y1:yOf(k,C.bottom),x2:nx+16,y2:yOf(k,C.bottom),stroke:'var(--staff)','stroke-width':'1.6'}));
+    for(let k=top+2;k<=d;k+=2)g.appendChild(el('line',{x1:nx-16,y1:yOf(k,C.bottom),x2:nx+16,y2:yOf(k,C.bottom),stroke:'var(--staff)','stroke-width':'1.6'}));
+    g.appendChild(el('ellipse',{cx:nx,cy:ny,rx:9.5,ry:7,transform:`rotate(-20 ${nx} ${ny})`,fill:'var(--staff)'}));
+    const up=d<C.bottom+4;
+    g.appendChild(el('line',Object.assign(up?{x1:nx+8.6,y1:ny-2,x2:nx+8.6,y2:ny-56}:{x1:nx-8.6,y1:ny+2,x2:nx-8.6,y2:ny+56},{stroke:'var(--staff)','stroke-width':'1.6'})));
+    svg.appendChild(g);
+  }
+
+  // ---------- 문제 출제 ----------
+  function pool(){
+    if(st.mode==='staff'){
+      const clefs=st.clef==='mix'?['bass','treble']:[st.clef], out=[];
+      clefs.forEach(c=>{const r=st.ledger?CLEF[c].range:CLEF[c].plain;for(let d=r[0];d<=r[1];d++)out.push({clef:c,d})});
+      return out;
+    }
+    if(st.mode==='letter'){
+      return NAMES.map((_,i)=>({letter:i}));
+    }
+    const quals=st.quality==='mix'?['major','minor']:[st.quality], out=[];
+    quals.forEach(q=>NAMES.forEach((_,root)=>out.push({root,quality:q})));
+    return out;
+  }
+  function keyOf(item){
+    if(st.mode==='staff')return 'S:'+item.clef+item.d;
+    if(st.mode==='letter')return 'L:'+item.letter;
+    return 'C:'+item.root+item.quality;
+  }
+  function sameItem(a,b){
+    if(!a||!b)return false;
+    if(st.mode==='staff')return a.clef===b.clef&&a.d===b.d;
+    if(st.mode==='letter')return a.letter===b.letter;
+    return a.root===b.root&&a.quality===b.quality;
+  }
+  function next(){
+    const p=pool().filter(n=>!sameItem(n,st.last));
+    let tot=0; const w=p.map(n=>{const v=st.weights[keyOf(n)]||1;tot+=v;return v});
+    let r=Math.random()*tot,i=0; while(i<w.length-1&&r>w[i]){r-=w[i];i++}
+    st.cur=p[i]; st.last=st.cur; st.locked=false; st.picked=[];
+    clearKeyStyles(); fb.className='feedback';
+    renderPrompt(); weakest();
+  }
+  function renderPrompt(){
+    const promptEl=document.getElementById('prompt');
+    if(st.mode==='staff'){
+      svg.style.display='block'; promptEl.classList.remove('show');
+      renderStaff();
+    }else{
+      svg.style.display='none'; promptEl.classList.add('show');
+      if(st.mode==='letter'){
+        promptBig.textContent=ENGLISH[st.cur.letter];
+        promptSmall.textContent='이 음이름에 맞는 계이름 건반을 눌러요';
+      }else{
+        promptBig.textContent=ENGLISH[st.cur.root]+' '+(st.cur.quality==='major'?'메이저':'마이너');
+        promptSmall.textContent='구성음 3개를 순서대로(또는 아무 순서나) 눌러요';
+      }
+      renderPicked();
+    }
+  }
+  function renderPicked(){
+    const wrap=document.getElementById('picked'); wrap.innerHTML='';
+    st.picked.forEach(p=>{const s=document.createElement('span'); s.textContent=noteLabel(p.letter,p.acc); wrap.appendChild(s)});
+  }
+
+  // ---------- 정답(들려주기) 음 정의 ----------
+  function staffAnswer(){ const d=st.cur.d, letter=d%7; return {letter, acc:keysigAcc(letter), d}; }
+
+  let ac=null;
+  function toneFreq(letter,acc,octave){
+    const midi=12*(octave+1)+SEMI[letter]+acc;
+    return 440*Math.pow(2,(midi-69)/12);
+  }
+  function beep(freq, startOffset){
+    if(!st.sound)return; // 코드 찾기 모드의 건반 클릭음 등 - 여기서 한 번에 막아야
+    // (관리자님 리포트, 2026-10-17 - "코드 찾기에서 소리 껐는데도 소리가 나") 호출하는
+    // 쪽마다 매번 st.sound를 체크 안 깜빡해도 안전함.
+    try{
+      ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+      if(ac.state==='suspended')ac.resume();
+    const t=ac.currentTime+startOffset;
+    [[1,'triangle',.32],[2,'sine',.08]].forEach(([m,type,amp])=>{
+      const o=ac.createOscillator(),gn=ac.createGain();
+      o.type=type;o.frequency.value=freq*m;
+      gn.gain.setValueAtTime(0,t);gn.gain.linearRampToValueAtTime(amp,t+.01);gn.gain.exponentialRampToValueAtTime(.0001,t+1.0);
+      o.connect(gn).connect(ac.destination);o.start(t);o.stop(t+1.05);
+    });
+    }catch(e){}
+  }
+  function playCurrent(){
+    if(!st.sound||!st.cur)return;
+    try{
+      if(st.mode==='staff'){
+        const a=staffAnswer();
+        beep(toneFreq(a.letter,a.acc,Math.floor(a.d/7)+1),0);
+      }else if(st.mode==='letter'){
+        beep(toneFreq(st.cur.letter,0,5),0);
+      }else{
+        triadFor(st.cur.root,st.cur.quality).forEach((t,i)=>beep(toneFreq(t.letter,t.acc,5),i*0.26));
+      }
+    }catch(e){}
+  }
+  function vibrate(ms){ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} }
+
+  const fb=document.getElementById('fb');
+  const promptBig=document.getElementById('promptBig'), promptSmall=document.getElementById('promptSmall');
+
+  function finish(ok, correctTones, idToWeight){
+    st.total++;
+    if(ok){
+      st.right++;st.streak++; if(st.streak>st.best){st.best=st.streak;save('nq_best',st.best)}
+      st.weights[idToWeight]=Math.max(1,(st.weights[idToWeight]||1)-1);
+      correctTones.forEach(t=>styleKey(t.letter,t.acc,'good'));
+      fb.textContent='정답! '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ');
+      fb.className='feedback show good';
+    }else{
+      st.streak=0; st.weights[idToWeight]=(st.weights[idToWeight]||1)+2;
+      correctTones.forEach(t=>styleKey(t.letter,t.acc,'reveal'));
+      fb.textContent='정답은 '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ');
+      fb.className='feedback show bad';
+      vibrate(120);
+      logMistake(questionLabel(), correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · '));
+    }
+    save('nq_w',st.weights); stats();
+    setTimeout(next, ok?700:1700);
+  }
+
+  // ---------- 오답노트 ----------
+  function questionLabel(){
+    if(st.mode==='staff'){
+      const clefName=st.cur.clef==='bass'?'낮은음자리표':'높은음자리표';
+      return clefName+' 악보';
+    }
+    if(st.mode==='letter') return '음이름 '+ENGLISH[st.cur.letter];
+    return ENGLISH[st.cur.root]+' '+(st.cur.quality==='major'?'메이저':'마이너');
+  }
+  function timeAgo(ts){
+    const s=Math.floor((Date.now()-ts)/1000);
+    if(s<60)return '방금';
+    if(s<3600)return Math.floor(s/60)+'분 전';
+    if(s<86400)return Math.floor(s/3600)+'시간 전';
+    return Math.floor(s/86400)+'일 전';
+  }
+  function logMistake(q,a){
+    const list=load('nq_mistakes',[]);
+    list.unshift({q,a,t:Date.now()});
+    if(list.length>50)list.length=50;
+    save('nq_mistakes',list);
+    renderMistakes();
+  }
+  function renderMistakes(){
+    const list=load('nq_mistakes',[]);
+    const toggleBtn=document.getElementById('mistakeToggle');
+    const isOpen=!document.getElementById('mistakeList').hidden;
+    toggleBtn.textContent=list.length+(isOpen?'개 숨기기':'개 보기');
+    const wrap=document.getElementById('mistakeList'); wrap.innerHTML='';
+    if(!list.length){
+      wrap.innerHTML='<p class="hint" style="margin:0;">아직 틀린 문제가 없어요.</p>';
+    }else{
+      list.forEach(m=>{
+        const row=document.createElement('div'); row.className='mistake-row';
+        const q=document.createElement('span'); q.className='mistake-q'; q.textContent=m.q;
+        const a=document.createElement('span'); a.className='mistake-a'; a.textContent='정답 '+m.a+' · '+timeAgo(m.t);
+        row.appendChild(q); row.appendChild(a); wrap.appendChild(row);
+      });
+    }
+  }
+
+  // 블랙키 하나는 물리적으로 샵/플랫 두 가지 이름을 다 가질 수 있어서(예: 라♯=시♭),
+  // 지금 "정답 후보(targets)"가 그 중 어느 쪽을 원하는지 보고 해석을 고른다.
+  function resolveBlackPress(sharpLetter, flatDeg, targets){
+    const wantsFlat=targets.some(t=>t.letter===flatDeg&&t.acc===-1);
+    const wantsSharp=targets.some(t=>t.letter===sharpLetter&&t.acc===1);
+    if(wantsFlat && !wantsSharp) return {letter:flatDeg, acc:-1};
+    return {letter:sharpLetter, acc:1};
+  }
+  function resolvePress(letter, acc, flatDeg, targets){
+    if(acc===1) return resolveBlackPress(letter, flatDeg, targets);
+    return {letter, acc:0};
+  }
+
+  function pressKey(letter, acc, flatDeg, octave){
+    octave = octave || 5;
+    if(st.locked || !st.cur)return;
+    if(st.mode==='chord'){
+      const target=triadFor(st.cur.root,st.cur.quality);
+      const tone=resolvePress(letter,acc,flatDeg,target);
+      if(st.picked.some(p=>p.letter===tone.letter))return; // 이미 고른 음(옥타브 달라도 같은 음이름이면 중복)
+      st.picked.push(tone);
+      styleKey(tone.letter,tone.acc,'on');
+      renderPicked();
+      beep(toneFreq(tone.letter,tone.acc,octave),0);
+      if(st.picked.length<3)return;
+      st.locked=true;
+      const norm=arr=>arr.map(t=>t.letter+':'+t.acc).sort().join(',');
+      const ok=norm(target)===norm(st.picked);
+      finish(ok, target, 'C:'+st.cur.root+st.cur.quality);
+      return;
+    }
+    // 악보 읽기 / 음이름 매칭: 한 번 눌러서 바로 채점
+    st.locked=true;
+    let target, id;
+    if(st.mode==='staff'){
+      target=[staffAnswer()]; id='S:'+st.cur.clef+st.cur.d;
+    }else{
+      target=[{letter:st.cur.letter, acc:0}]; id='L:'+st.cur.letter;
+    }
+    playCurrent();
+    const tone=resolvePress(letter,acc,flatDeg,target);
+    const ok = tone.letter===target[0].letter && tone.acc===target[0].acc;
+    styleKey(tone.letter,tone.acc, ok?'good':'bad');
+    finish(ok, target, id);
+  }
+
+  function stats(){
+    document.getElementById('sScore').textContent=st.right+' / '+st.total;
+    document.getElementById('sRate').textContent= st.total? Math.round(st.right/st.total*100)+'%' : '-';
+    document.getElementById('sStreak').textContent=st.streak;
+    document.getElementById('sBest').textContent=st.best;
+  }
+  function weakest(){
+    const wkEl=document.getElementById('weak');
+    const prefix=st.mode==='staff'?'S:':st.mode==='letter'?'L:':'C:';
+    const entries=Object.entries(st.weights).filter(([k,v])=>v>1&&k.startsWith(prefix)).sort((a,b)=>b[1]-a[1]);
+    if(!entries.length){wkEl.textContent='';return}
+    const raw=entries[0][0].slice(2);
+    if(st.mode==='staff'){
+      const m=raw.match(/^([a-z]+)(\d+)$/); if(!m){wkEl.textContent='';return}
+      const clefName=m[1]==='bass'?'낮은음자리표':'높은음자리표';
+      wkEl.innerHTML='요즘 자주 틀리는 음: <b>'+clefName+' '+NAMES[parseInt(m[2],10)%7]+'</b>';
+    }else if(st.mode==='letter'){
+      wkEl.innerHTML='요즘 자주 틀리는 음이름: <b>'+ENGLISH[parseInt(raw,10)]+'</b>';
+    }else{
+      const m=raw.match(/^(\d+)(major|minor)$/); if(!m){wkEl.textContent='';return}
+      wkEl.innerHTML='요즘 자주 틀리는 코드: <b>'+ENGLISH[parseInt(m[1],10)]+' '+(m[2]==='major'?'메이저':'마이너')+'</b>';
+    }
+  }
+
+  document.getElementById('replay').addEventListener('click',playCurrent);
+
+  function applyModeVisibility(){
+    document.querySelectorAll('.only-staff').forEach(e=>e.hidden = st.mode!=='staff');
+    document.querySelectorAll('.only-chord').forEach(e=>e.hidden = st.mode!=='chord');
+    relayoutKeyboard(st.mode);
+    const hintEl=document.getElementById('hint');
+    if(st.mode==='staff'){
+      hintEl.textContent='조표가 있으면 바뀌는 음은 검은 건반을 눌러야 정답이에요(예: 가장조의 파는 파♯). 자주 틀리는 음은 더 자주 나와요.';
+    }else if(st.mode==='letter'){
+      hintEl.textContent='C D E F G A B 알파벳 음이름과 도레미파솔라시 계이름을 매칭하는 연습이에요(C=도, A=라).';
+    }else{
+      hintEl.textContent='코드 이름(예: C 메이저)을 보고 구성음 3개를 건반에서 찾아 누르면 자동으로 채점돼요. 검은 건반도 코드에 맞게 써야 해요.';
+    }
+  }
+  function seg(id,prop,parse,extra){
+    const btns=[...document.getElementById(id).querySelectorAll('button')];
+    const sync=()=>btns.forEach(b=>b.setAttribute('aria-pressed',String(parse(b.dataset.v)===st[prop])));
+    btns.forEach(b=>b.addEventListener('click',()=>{st[prop]=parse(b.dataset.v);sync();
+      save('nq_prefs',{mode:st.mode,clef:st.clef,key:st.key,ledger:st.ledger,sound:st.sound,quality:st.quality});
+      if(extra)extra();
+      if(prop!=='sound'){st.last=null;next()}}));
+    sync();
+  }
+  seg('segMode','mode',v=>v, applyModeVisibility);
+  seg('segClef','clef',v=>v); seg('segKey','key',v=>v);
+  seg('segLedger','ledger',v=>v==='1'); seg('segSound','sound',v=>v==='1');
+  seg('segQuality','quality',v=>v);
+  document.getElementById('reset').addEventListener('click',()=>{
+    st.right=0;st.total=0;st.streak=0;st.best=0;st.weights={};save('nq_best',0);save('nq_w',{});stats();weakest();
+  });
+  document.getElementById('mistakeToggle').addEventListener('click',()=>{
+    const listEl=document.getElementById('mistakeList');
+    listEl.hidden=!listEl.hidden; renderMistakes();
+  });
+  document.getElementById('clearMistakes').addEventListener('click',()=>{
+    save('nq_mistakes',[]); renderMistakes();
+  });
+  applyModeVisibility();
+  stats(); next(); renderMistakes();
+  if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
+})();
+</script>
+</body>
+</html>
