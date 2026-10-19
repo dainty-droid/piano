@@ -90,6 +90,19 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
 .reset{appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer;margin-left:auto}
 .weak{font-size:12px;color:var(--muted);margin:0}
 .weak b{color:var(--ink)}
+.goal-progress{font-size:12px;color:var(--muted);margin:0;display:flex;align-items:center;gap:8px}
+.goal-progress b{color:var(--ink)}
+.goal-bar{flex:1;height:6px;border-radius:999px;background:var(--line);overflow:hidden}
+.goal-bar i{display:block;height:100%;background:var(--accent);border-radius:999px;transition:width .2s}
+.g-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.g-modal.show{display:flex}
+.g-modal .card2{background:var(--surface);color:var(--ink);border-radius:14px;padding:22px;width:min(380px,100%);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+.g-modal h2{margin:0 0 14px;font-size:20px;font-family:var(--display);font-weight:400}
+.g-modal .grid2{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:15px;margin-bottom:16px}
+.g-modal .grid2 b{font-variant-numeric:tabular-nums;text-align:right}
+.g-modal .row2{display:flex;gap:8px;justify-content:flex-end}
+.btn-primary{appearance:none;background:var(--accent);color:#fff;border:1px solid var(--accent);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+.btn-plain{appearance:none;background:transparent;border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
 .mistakes{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .mistakes-head{display:flex;align-items:center;gap:8px}
 .mistakes-head b{font-size:13px}
@@ -115,6 +128,10 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     <button data-v="letter" aria-pressed="false" type="button">음이름 매칭</button>
     <button data-v="chord" aria-pressed="false" type="button">코드 찾기</button>
   </div>
+  <p class="goal-progress" id="goalProgress" hidden>
+    <span>목표 <b id="goalText">0 / 0</b></span>
+    <span class="goal-bar"><i id="goalBar" style="width:0%"></i></span>
+  </p>
   <div class="stats">
     <div class="stat"><b id="sScore">0 / 0</b><span>맞힘 / 시도</span></div>
     <div class="stat"><b id="sRate">-</b><span>정답률</span></div>
@@ -174,6 +191,14 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
         <button data-v="mix" aria-pressed="true">섞어서</button>
       </div>
     </div>
+    <div class="row"><label>목표</label>
+      <div class="seg" id="segGoal">
+        <button data-v="0" aria-pressed="true">자유</button>
+        <button data-v="10" aria-pressed="false">10문제</button>
+        <button data-v="20" aria-pressed="false">20문제</button>
+        <button data-v="30" aria-pressed="false">30문제</button>
+      </div>
+    </div>
     <div class="row"><label>소리</label>
       <div class="seg" id="segSound">
         <button data-v="1" aria-pressed="true">켜기</button>
@@ -184,6 +209,15 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     <p class="hint" id="hint"></p>
   </div>
 </div>
+<div class="g-modal" id="goalResult"><div class="card2">
+  <h2>목표 달성! 🎉</h2>
+  <div class="grid2">
+    <span>문제 수</span><b id="grCount"></b>
+    <span>정답률</span><b id="grAcc"></b>
+    <span>평균 풀이시간</span><b id="grAvg"></b>
+  </div>
+  <div class="row2"><button class="btn-plain" id="grFree" type="button">자유 모드로</button><button class="btn-primary" id="grAgain" type="button">다시 도전</button></div>
+</div></div>
 <script>
 (function(){
   const NAMES=['도','레','미','파','솔','라','시'];
@@ -202,9 +236,10 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     bass:{bottom:18, range:[14,30], plain:[17,27], sharpsAt:[24,21,25], flatAt:20},
     treble:{bottom:30, range:[26,42], plain:[29,39], sharpsAt:[38,35,39], flatAt:34}
   };
-  const st={mode:'staff',clef:'bass',key:'C',ledger:true,sound:true,quality:'mix',
+  const st={mode:'staff',clef:'bass',key:'C',ledger:true,sound:true,quality:'mix',goal:0,
     cur:null,last:null,locked:false,picked:[],
-    right:0,total:0,streak:0,best:0,weights:{}};
+    right:0,total:0,streak:0,best:0,weights:{},
+    times:[],qStart:0,goalCount:0,goalRight:0,goalTimes:[]};
   function load(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}}
   function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
   st.best=load('nq_best',0); st.weights=load('nq_w',{});
@@ -367,7 +402,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     const p=pool().filter(n=>!sameItem(n,st.last));
     let tot=0; const w=p.map(n=>{const v=st.weights[keyOf(n)]||1;tot+=v;return v});
     let r=Math.random()*tot,i=0; while(i<w.length-1&&r>w[i]){r-=w[i];i++}
-    st.cur=p[i]; st.last=st.cur; st.locked=false; st.picked=[];
+    st.cur=p[i]; st.last=st.cur; st.locked=false; st.picked=[]; st.qStart=Date.now();
     clearKeyStyles(); fb.className='feedback';
     renderPrompt(); weakest();
   }
@@ -437,22 +472,54 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
 
   function finish(ok, correctTones, idToWeight){
     st.total++;
+    const elapsed=Date.now()-st.qStart;
+    const elapsedTxt=(elapsed/1000).toFixed(1)+'초';
+    st.times.push(elapsed); if(st.times.length>500)st.times.shift();
     if(ok){
       st.right++;st.streak++; if(st.streak>st.best){st.best=st.streak;save('nq_best',st.best)}
       st.weights[idToWeight]=Math.max(1,(st.weights[idToWeight]||1)-1);
       correctTones.forEach(t=>styleKey(t.letter,t.acc,'good'));
-      fb.textContent='정답! '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ');
+      fb.textContent='정답! '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ')+' · '+elapsedTxt;
       fb.className='feedback show good';
     }else{
       st.streak=0; st.weights[idToWeight]=(st.weights[idToWeight]||1)+2;
       correctTones.forEach(t=>styleKey(t.letter,t.acc,'reveal'));
-      fb.textContent='정답은 '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ');
+      fb.textContent='정답은 '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ')+' · '+elapsedTxt;
       fb.className='feedback show bad';
       vibrate(120);
       logMistake(questionLabel(), correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · '));
     }
     save('nq_w',st.weights); stats();
-    setTimeout(next, ok?700:1700);
+    let goalDone=false;
+    if(st.goal){
+      st.goalCount++; if(ok)st.goalRight++;
+      st.goalTimes.push(elapsed);
+      updateGoalProgress();
+      goalDone=st.goalCount>=st.goal;
+    }
+    setTimeout(goalDone?showGoalResult:next, ok?700:1700);
+  }
+
+  // ---------- 목표(세션) 모드 ----------
+  function startGoalSession(){
+    st.goalCount=0; st.goalRight=0; st.goalTimes=[];
+    const m=document.getElementById('goalResult'); m.hidden=true; m.classList.remove('show');
+    updateGoalProgress();
+  }
+  function updateGoalProgress(){
+    const wrap=document.getElementById('goalProgress');
+    if(!st.goal){ wrap.hidden=true; return; }
+    wrap.hidden=false;
+    document.getElementById('goalText').textContent=st.goalCount+' / '+st.goal;
+    document.getElementById('goalBar').style.width=Math.min(100,Math.round(st.goalCount/st.goal*100))+'%';
+  }
+  function showGoalResult(){
+    const n=st.goalTimes.length;
+    const avg=n?(st.goalTimes.reduce((a,b)=>a+b,0)/n/1000).toFixed(1)+'초':'-';
+    document.getElementById('grCount').textContent=n+'문제';
+    document.getElementById('grAcc').textContent=n?Math.round(st.goalRight/n*100)+'%':'-';
+    document.getElementById('grAvg').textContent=avg;
+    const m=document.getElementById('goalResult'); m.hidden=false; m.classList.add('show');
   }
 
   // ---------- 오답노트 ----------
@@ -585,7 +652,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     const btns=[...document.getElementById(id).querySelectorAll('button')];
     const sync=()=>btns.forEach(b=>b.setAttribute('aria-pressed',String(parse(b.dataset.v)===st[prop])));
     btns.forEach(b=>b.addEventListener('click',()=>{st[prop]=parse(b.dataset.v);sync();
-      save('nq_prefs',{mode:st.mode,clef:st.clef,key:st.key,ledger:st.ledger,sound:st.sound,quality:st.quality});
+      save('nq_prefs',{mode:st.mode,clef:st.clef,key:st.key,ledger:st.ledger,sound:st.sound,quality:st.quality,goal:st.goal});
       if(extra)extra();
       if(prop!=='sound'){st.last=null;next()}}));
     sync();
@@ -594,8 +661,16 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
   seg('segClef','clef',v=>v); seg('segKey','key',v=>v);
   seg('segLedger','ledger',v=>v==='1'); seg('segSound','sound',v=>v==='1');
   seg('segQuality','quality',v=>v);
+  seg('segGoal','goal',v=>parseInt(v,10),startGoalSession);
   document.getElementById('reset').addEventListener('click',()=>{
-    st.right=0;st.total=0;st.streak=0;st.best=0;st.weights={};save('nq_best',0);save('nq_w',{});stats();weakest();
+    st.right=0;st.total=0;st.streak=0;st.best=0;st.weights={};st.times=[];save('nq_best',0);save('nq_w',{});stats();weakest();
+  });
+  document.getElementById('grAgain').addEventListener('click',()=>{ startGoalSession(); next(); });
+  document.getElementById('grFree').addEventListener('click',()=>{
+    st.goal=0;
+    [...document.getElementById('segGoal').querySelectorAll('button')].forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v==='0')));
+    save('nq_prefs',{mode:st.mode,clef:st.clef,key:st.key,ledger:st.ledger,sound:st.sound,quality:st.quality,goal:st.goal});
+    startGoalSession(); next();
   });
   document.getElementById('mistakeToggle').addEventListener('click',()=>{
     const listEl=document.getElementById('mistakeList');
@@ -605,7 +680,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     save('nq_mistakes',[]); renderMistakes();
   });
   applyModeVisibility();
-  stats(); next(); renderMistakes();
+  stats(); startGoalSession(); next(); renderMistakes();
   if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 })();
 </script>
