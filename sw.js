@@ -1,4 +1,4 @@
-const CACHE = 'note-quiz-v3';
+const CACHE = 'note-quiz-v4';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

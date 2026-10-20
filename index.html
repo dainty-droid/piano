@@ -161,6 +161,14 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     </div>
     <div class="mistake-list" id="mistakeList" hidden></div>
   </div>
+  <div class="mistakes">
+    <div class="mistakes-head">
+      <b>연습 기록</b>
+      <button class="toggle-link" id="sessionToggle" type="button">0개 보기</button>
+      <button class="reset" id="clearSessions" type="button">기록 지우기</button>
+    </div>
+    <div class="mistake-list" id="sessionList" hidden></div>
+  </div>
   <div class="settings">
     <div class="row only-staff" id="rowClef"><label>자리표</label>
       <div class="seg" id="segClef">
@@ -198,6 +206,8 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
         <button data-v="20" aria-pressed="false">20문제</button>
         <button data-v="30" aria-pressed="false">30문제</button>
       </div>
+      <label style="width:auto; margin-left:10px;">목표 정답률</label>
+      <input type="number" id="goalAccTarget" min="0" max="100" step="5" value="90" style="width:54px;"> %
     </div>
     <div class="row"><label>소리</label>
       <div class="seg" id="segSound">
@@ -210,11 +220,13 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
   </div>
 </div>
 <div class="g-modal" id="goalResult"><div class="card2">
-  <h2>목표 달성! 🎉</h2>
+  <h2 id="grTitle">목표 달성! 🎉</h2>
   <div class="grid2">
     <span>문제 수</span><b id="grCount"></b>
     <span>정답률</span><b id="grAcc"></b>
     <span>평균 풀이시간</span><b id="grAvg"></b>
+    <span>총 소요시간</span><b id="grTotal"></b>
+    <span>지난 기록 대비</span><b id="grCompare"></b>
   </div>
   <div class="row2"><button class="btn-plain" id="grFree" type="button">자유 모드로</button><button class="btn-primary" id="grAgain" type="button">다시 도전</button></div>
 </div></div>
@@ -513,13 +525,72 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     document.getElementById('goalText').textContent=st.goalCount+' / '+st.goal;
     document.getElementById('goalBar').style.width=Math.min(100,Math.round(st.goalCount/st.goal*100))+'%';
   }
+  function fmtSec(ms){ return (ms/1000).toFixed(1)+'초'; }
+  function fmtDate(ts){
+    const d=new Date(ts);
+    return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+
   function showGoalResult(){
     const n=st.goalTimes.length;
-    const avg=n?(st.goalTimes.reduce((a,b)=>a+b,0)/n/1000).toFixed(1)+'초':'-';
+    const totalMs=st.goalTimes.reduce((a,b)=>a+b,0);
+    const avgMs=n?totalMs/n:0;
+    const accPct=n?Math.round(st.goalRight/n*100):0;
+    const target=parseInt(document.getElementById('goalAccTarget').value,10)||0;
+
     document.getElementById('grCount').textContent=n+'문제';
-    document.getElementById('grAcc').textContent=n?Math.round(st.goalRight/n*100)+'%':'-';
-    document.getElementById('grAvg').textContent=avg;
+    document.getElementById('grAcc').textContent=n?accPct+'%':'-';
+    document.getElementById('grAvg').textContent=n?fmtSec(avgMs):'-';
+    document.getElementById('grTotal').textContent=n?fmtSec(totalMs):'-';
+
+    const title=document.getElementById('grTitle');
+    if(target>0){
+      title.textContent=accPct>=target?'목표 달성! 🎉 (정답률 '+target+'% 이상)':'아쉬워요 (목표 정답률 '+target+'%, 이번 '+accPct+'%)';
+    }else{
+      title.textContent='목표 달성! 🎉';
+    }
+
+    const sessions=load('nq_sessions',[]);
+    const prev=sessions.find(s=>s.goal===st.goal && s.mode===st.mode);
+    const cmpEl=document.getElementById('grCompare');
+    if(prev){
+      const timeDiff=totalMs-prev.totalMs;
+      const accDiff=accPct-prev.accPct;
+      const timeTxt=(timeDiff===0?'±0.0초':(timeDiff>0?'+':'-')+fmtSec(Math.abs(timeDiff)));
+      const accTxt=(accDiff===0?'±0%p':(accDiff>0?'+':'-')+Math.abs(accDiff)+'%p');
+      cmpEl.textContent=`${fmtDate(prev.t)} 대비 ${timeTxt} / 정답률 ${accTxt}`;
+    }else{
+      cmpEl.textContent='이전 기록 없음(첫 기록)';
+    }
+
+    sessions.unshift({mode:st.mode, goal:st.goal, count:n, right:st.goalRight, accPct, totalMs, avgMs, target, t:Date.now()});
+    if(sessions.length>100)sessions.length=100;
+    save('nq_sessions',sessions);
+    renderSessions();
+
     const m=document.getElementById('goalResult'); m.hidden=false; m.classList.add('show');
+  }
+
+  // ---------- 연습 기록 ----------
+  const MODE_LABEL={staff:'악보 읽기', letter:'음이름 매칭', chord:'코드 찾기'};
+  function renderSessions(){
+    const list=load('nq_sessions',[]);
+    const toggleBtn=document.getElementById('sessionToggle');
+    const isOpen=!document.getElementById('sessionList').hidden;
+    toggleBtn.textContent=list.length+(isOpen?'개 숨기기':'개 보기');
+    const wrap=document.getElementById('sessionList'); wrap.innerHTML='';
+    if(!list.length){
+      wrap.innerHTML='<p class="hint" style="margin:0;">아직 완료한 목표 세션이 없어요.</p>';
+    }else{
+      list.forEach(s=>{
+        const row=document.createElement('div'); row.className='mistake-row';
+        const q=document.createElement('span'); q.className='mistake-q';
+        q.textContent=`${MODE_LABEL[s.mode]||s.mode} · ${s.goal}문제 · 정답률 ${s.accPct}%`;
+        const a=document.createElement('span'); a.className='mistake-a';
+        a.textContent=`총 ${fmtSec(s.totalMs)} · ${fmtDate(s.t)}`;
+        row.appendChild(q); row.appendChild(a); wrap.appendChild(row);
+      });
+    }
   }
 
   // ---------- 오답노트 ----------
@@ -679,8 +750,18 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
   document.getElementById('clearMistakes').addEventListener('click',()=>{
     save('nq_mistakes',[]); renderMistakes();
   });
+  document.getElementById('sessionToggle').addEventListener('click',()=>{
+    const listEl=document.getElementById('sessionList');
+    listEl.hidden=!listEl.hidden; renderSessions();
+  });
+  document.getElementById('clearSessions').addEventListener('click',()=>{
+    save('nq_sessions',[]); renderSessions();
+  });
+  const goalAccEl=document.getElementById('goalAccTarget');
+  goalAccEl.value=load('nq_goal_acc',90);
+  goalAccEl.addEventListener('change',()=>save('nq_goal_acc',parseInt(goalAccEl.value,10)||0));
   applyModeVisibility();
-  stats(); startGoalSession(); next(); renderMistakes();
+  stats(); startGoalSession(); next(); renderMistakes(); renderSessions();
   if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}
 })();
 </script>
