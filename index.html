@@ -331,9 +331,20 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     whiteKeys.forEach(k=>k.btn.classList.remove('good','bad','reveal','on'));
     blackKeys.forEach(k=>k.btn.classList.remove('good','bad','reveal','on'));
   }
-  function styleKey(letter,acc,cls){
-    if(acc===0){ whiteKeys[letter].btn.classList.add(cls); return; }
-    const bk=blackKeys.find(k=> (acc===1&&k.sharpDeg===letter) || (acc===-1&&k.flatDeg===letter) );
+  // 2026-10-22 수정(관리자님 리포트 - "코드찾기가 오른쪽 건반을 눌러도 색은 왼쪽
+  // 건반에 표시되네"): 예전엔 whiteKeys[letter]/blackKeys.find(...)가 옥타브를
+  // 안 가리고 음이름만 보고 첫 번째(낮은 옥타브) 건반을 집어서, 2옥타브 건반에서
+  // 높은 옥타브를 눌러도 항상 낮은 옥타브 쪽에 색이 칠해졌다. octave 인자를 받아서
+  // 실제 누른(또는 보여줄) 옥타브의 건반을 정확히 찾는다 - 기본값 5는 기존 동작
+  // (1옥타브만 보이는 악보읽기/음이름매칭, 코드찾기의 "정답 공개" 표시)과 동일하다.
+  function styleKey(letter,acc,cls,octave){
+    octave=octave||5;
+    if(acc===0){
+      const wk=whiteKeys.find(k=>k.idx%7===letter && 5+Math.floor(k.idx/7)===octave);
+      if(wk)wk.btn.classList.add(cls);
+      return;
+    }
+    const bk=blackKeys.find(k=> (5+k.oct===octave) && ((acc===1&&k.sharpDeg===letter) || (acc===-1&&k.flatDeg===letter)) );
     if(bk)bk.btn.classList.add(cls);
   }
 
@@ -490,7 +501,12 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     if(ok){
       st.right++;st.streak++; if(st.streak>st.best){st.best=st.streak;save('nq_best',st.best)}
       st.weights[idToWeight]=Math.max(1,(st.weights[idToWeight]||1)-1);
-      correctTones.forEach(t=>styleKey(t.letter,t.acc,'good'));
+      correctTones.forEach(t=>{
+        // 코드 찾기는 실제로 누른 옥타브에 색을 표시(같은 음이름이 여러 옥타브에 있을
+        // 수 있어서) - st.picked에서 같은 음이름을 찾아 그 옥타브를 쓴다.
+        const picked=st.picked.find(p=>p.letter===t.letter&&p.acc===t.acc);
+        styleKey(t.letter,t.acc,'good',picked&&picked.octave);
+      });
       fb.textContent='정답! '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ')+' · '+elapsedTxt;
       fb.className='feedback show good';
     }else{
@@ -654,8 +670,9 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
       const target=triadFor(st.cur.root,st.cur.quality);
       const tone=resolvePress(letter,acc,flatDeg,target);
       if(st.picked.some(p=>p.letter===tone.letter))return; // 이미 고른 음(옥타브 달라도 같은 음이름이면 중복)
+      tone.octave=octave;
       st.picked.push(tone);
-      styleKey(tone.letter,tone.acc,'on');
+      styleKey(tone.letter,tone.acc,'on',octave);
       renderPicked();
       beep(toneFreq(tone.letter,tone.acc,octave),0);
       if(st.picked.length<3)return;
@@ -676,7 +693,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     playCurrent();
     const tone=resolvePress(letter,acc,flatDeg,target);
     const ok = tone.letter===target[0].letter && tone.acc===target[0].acc;
-    styleKey(tone.letter,tone.acc, ok?'good':'bad');
+    styleKey(tone.letter,tone.acc, ok?'good':'bad', octave);
     finish(ok, target, id);
   }
 
