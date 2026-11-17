@@ -473,7 +473,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
         promptSmall.textContent='이 음이름에 맞는 계이름 건반을 눌러요';
       }else{
         promptBig.textContent=chordName(st.cur.root,st.cur.quality);
-        promptSmall.textContent='구성음 '+chordFor(st.cur.root,st.cur.quality).length+'개를 순서대로(또는 아무 순서나) 눌러요';
+        promptSmall.textContent='구성음 '+chordFor(st.cur.root,st.cur.quality).length+'개를 아무 순서나 눌러요 (잘못 누르면 한 번 더 눌러 취소)';
       }
       renderPicked();
     }
@@ -705,7 +705,17 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
       // 이미 고른 음(옥타브 달라도 같은 음높이면 중복). 흰 건반이 미♯/시♯ 같은 목표음이면 그 이름으로 바꿔 둔다
       const sameT=target.find(t=>pcOf(t.letter,t.acc)===pcOf(tone.letter,tone.acc));
       if(sameT){ tone.letter=sameT.letter; tone.acc=sameT.acc; }
-      if(st.picked.some(p=>pcOf(p.letter,p.acc)===pcOf(tone.letter,tone.acc)))return;
+      // 2026-11-17 관리자님 요청: 건반이 작아서 잘못 누를 때가 있으니, 이미 고른 음을 다시 누르면 취소.
+      // (같은 음높이면 다른 옥타브 건반을 눌러도 취소된다)
+      const dupIdx=st.picked.findIndex(p=>pcOf(p.letter,p.acc)===pcOf(tone.letter,tone.acc));
+      if(dupIdx!==-1){
+        st.picked.splice(dupIdx,1);
+        whiteKeys.forEach(k=>k.btn.classList.remove('on'));
+        blackKeys.forEach(k=>k.btn.classList.remove('on'));
+        st.picked.forEach(p=>styleKey(p.letter,p.acc,'on',p.octave));
+        renderPicked();
+        return;
+      }
       tone.octave=octave;
       st.picked.push(tone);
       styleKey(tone.letter,tone.acc,'on',octave);
