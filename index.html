@@ -195,9 +195,13 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     </div>
     <div class="row only-chord" id="rowQuality"><label>코드</label>
       <div class="seg" id="segQuality">
-        <button data-v="major" aria-pressed="false">메이저만</button>
-        <button data-v="minor" aria-pressed="false">마이너만</button>
-        <button data-v="mix" aria-pressed="true">섞어서</button>
+        <button data-v="major" aria-pressed="false">메이저</button>
+        <button data-v="minor" aria-pressed="false">마이너</button>
+        <button data-v="aug" aria-pressed="false">aug</button>
+        <button data-v="sus4" aria-pressed="false">sus4</button>
+        <button data-v="add9" aria-pressed="false">add9</button>
+        <button data-v="mix" aria-pressed="true">메이저+마이너</button>
+        <button data-v="all" aria-pressed="false">전부 섞기</button>
       </div>
     </div>
     <div class="row"><label>목표</label>
@@ -270,17 +274,36 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     const natural=((SEMI[targetLetter]-SEMI[rootLetter])%12+12)%12;
     return targetInterval-natural; // 보통 -1/0/1 (3화음 범위에서는 항상 이 범위)
   }
-  function triadFor(root, quality){
-    const thirdLetter=(root+2)%7, fifthLetter=(root+4)%7;
-    const thirdInt=quality==='major'?4:3;
-    return [
-      {letter:root, acc:0},
-      {letter:thirdLetter, acc:accidentalFor(root,thirdLetter,thirdInt)},
-      {letter:fifthLetter, acc:accidentalFor(root,fifthLetter,7)},
-    ];
+  // 2026-11-17 관리자님 요청: aug(어그먼트) / sus4 / add9 추가.
+  // [근음에서 몇 번째 음이름(도수-1), 근음에서 몇 반음] 목록. add9의 9도는 옥타브 위 2도.
+  const CHORDS={
+    major:{label:'메이저', tones:[[0,0],[2,4],[4,7]]},
+    minor:{label:'마이너', tones:[[0,0],[2,3],[4,7]]},
+    aug:  {label:'aug',   tones:[[0,0],[2,4],[4,8]]},
+    sus4: {label:'sus4',  tones:[[0,0],[3,5],[4,7]]},
+    add9: {label:'add9',  tones:[[0,0],[2,4],[4,7],[1,14]]},
+  };
+  const QUALITY_SETS={mix:['major','minor'], all:['major','minor','aug','sus4','add9']};
+  function chordFor(root, quality){
+    const def=CHORDS[quality]||CHORDS.major;
+    return def.tones.map(([step,semi])=>{
+      const letter=(root+step)%7;
+      return {letter, acc:accidentalFor(root,letter,semi%12), semi};
+    });
   }
-  const accMark=a=>a===1?'♯':a===-1?'♭':'';
-  const noteLabel=(letter,acc)=>NAMES[letter]+accMark(acc);
+  const triadFor=chordFor; // 예전 이름 호환
+  const chordName=(root,quality)=>ENGLISH[root]+' '+((CHORDS[quality]||CHORDS.major).label);
+  const pcOf=(letter,acc)=>((SEMI[letter]+acc)%12+12)%12;
+  // aug 코드는 미♯·시♯·파𝄪처럼 흰 건반 이름이 바뀌는 음이 나온다 - 이론상 이름 옆에 실제 누를 건반을 같이 보여줌
+  const WHITE_BY_PC={0:0,2:1,4:2,5:3,7:4,9:5,11:6};
+  const accMark=a=>a===2?'𝄪':a===1?'♯':a===-1?'♭':a===-2?'𝄫':'';
+  const noteLabel=(letter,acc)=>{
+    const base=NAMES[letter]+accMark(acc);
+    const pc=pcOf(letter,acc);
+    const odd=(acc!==0 && WHITE_BY_PC[pc]!==undefined) || Math.abs(acc)>1;
+    if(!odd) return base;
+    return base+'(='+(WHITE_BY_PC[pc]!==undefined?NAMES[WHITE_BY_PC[pc]]:NAMES[(letter+ (acc>0?1:6))%7]+(acc>0?'♯':'♭'))+')';
+  };
 
   // ---------- 건반(화이트/블랙) 만들기 ----------
   // 한 옥타브 위까지 2옥타브로 확장(관리자님 요청, 2026-10-17 - "솔이나 라 코드 찾기가
@@ -340,6 +363,14 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
   // (1옥타브만 보이는 악보읽기/음이름매칭, 코드찾기의 "정답 공개" 표시)과 동일하다.
   function styleKey(letter,acc,cls,octave){
     octave=octave||5;
+    // 미♯→파, 시♯→도, 파𝄪→솔처럼 이름은 바뀌어도 실제 건반으로 옮겨서 칠한다
+    const pc=pcOf(letter,acc);
+    if(acc!==0 && WHITE_BY_PC[pc]!==undefined){
+      letter=WHITE_BY_PC[pc]; acc=0;
+    }else if(Math.abs(acc)>1){
+      const g=GAP_PATTERN.find(x=>SEMI[x.sharp]+1===pc);
+      if(g){ letter=g.sharp; acc=1; }
+    }
     if(acc===0){
       const wk=whiteKeys.find(k=>k.idx%7===letter && 5+Math.floor(k.idx/7)===octave);
       if(wk)wk.btn.classList.add(cls);
@@ -407,7 +438,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     if(st.mode==='letter'){
       return NAMES.map((_,i)=>({letter:i}));
     }
-    const quals=st.quality==='mix'?['major','minor']:[st.quality], out=[];
+    const quals=QUALITY_SETS[st.quality]||[st.quality], out=[];
     quals.forEach(q=>NAMES.forEach((_,root)=>out.push({root,quality:q})));
     return out;
   }
@@ -441,8 +472,8 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
         promptBig.textContent=ENGLISH[st.cur.letter];
         promptSmall.textContent='이 음이름에 맞는 계이름 건반을 눌러요';
       }else{
-        promptBig.textContent=ENGLISH[st.cur.root]+' '+(st.cur.quality==='major'?'메이저':'마이너');
-        promptSmall.textContent='구성음 3개를 순서대로(또는 아무 순서나) 눌러요';
+        promptBig.textContent=chordName(st.cur.root,st.cur.quality);
+        promptSmall.textContent='구성음 '+chordFor(st.cur.root,st.cur.quality).length+'개를 순서대로(또는 아무 순서나) 눌러요';
       }
       renderPicked();
     }
@@ -485,7 +516,8 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
       }else if(st.mode==='letter'){
         beep(toneFreq(st.cur.letter,0,5),0);
       }else{
-        triadFor(st.cur.root,st.cur.quality).forEach((t,i)=>beep(toneFreq(t.letter,t.acc,5),i*0.26));
+        const rootMidi=12*6+SEMI[st.cur.root];
+        chordFor(st.cur.root,st.cur.quality).forEach((t,i)=>beep(440*Math.pow(2,(rootMidi+t.semi-69)/12),i*0.26));
       }
     }catch(e){}
   }
@@ -505,7 +537,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
       correctTones.forEach(t=>{
         // 코드 찾기는 실제로 누른 옥타브에 색을 표시(같은 음이름이 여러 옥타브에 있을
         // 수 있어서) - st.picked에서 같은 음이름을 찾아 그 옥타브를 쓴다.
-        const picked=st.picked.find(p=>p.letter===t.letter&&p.acc===t.acc);
+        const picked=st.picked.find(p=>pcOf(p.letter,p.acc)===pcOf(t.letter,t.acc));
         styleKey(t.letter,t.acc,'good',picked&&picked.octave);
       });
       fb.textContent='정답! '+correctTones.map(t=>noteLabel(t.letter,t.acc)).join(' · ')+' · '+elapsedTxt;
@@ -617,7 +649,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
       return clefName+' 악보';
     }
     if(st.mode==='letter') return '음이름 '+ENGLISH[st.cur.letter];
-    return ENGLISH[st.cur.root]+' '+(st.cur.quality==='major'?'메이저':'마이너');
+    return chordName(st.cur.root,st.cur.quality);
   }
   function timeAgo(ts){
     const s=Math.floor((Date.now()-ts)/1000);
@@ -668,17 +700,20 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     octave = octave || 5;
     if(st.locked || !st.cur)return;
     if(st.mode==='chord'){
-      const target=triadFor(st.cur.root,st.cur.quality);
+      const target=chordFor(st.cur.root,st.cur.quality);
       const tone=resolvePress(letter,acc,flatDeg,target);
-      if(st.picked.some(p=>p.letter===tone.letter))return; // 이미 고른 음(옥타브 달라도 같은 음이름이면 중복)
+      // 이미 고른 음(옥타브 달라도 같은 음높이면 중복). 흰 건반이 미♯/시♯ 같은 목표음이면 그 이름으로 바꿔 둔다
+      const sameT=target.find(t=>pcOf(t.letter,t.acc)===pcOf(tone.letter,tone.acc));
+      if(sameT){ tone.letter=sameT.letter; tone.acc=sameT.acc; }
+      if(st.picked.some(p=>pcOf(p.letter,p.acc)===pcOf(tone.letter,tone.acc)))return;
       tone.octave=octave;
       st.picked.push(tone);
       styleKey(tone.letter,tone.acc,'on',octave);
       renderPicked();
       beep(toneFreq(tone.letter,tone.acc,octave),0);
-      if(st.picked.length<3)return;
+      if(st.picked.length<target.length)return;
       st.locked=true;
-      const norm=arr=>arr.map(t=>t.letter+':'+t.acc).sort().join(',');
+      const norm=arr=>arr.map(t=>pcOf(t.letter,t.acc)).sort((a,b)=>a-b).join(',');
       const ok=norm(target)===norm(st.picked);
       finish(ok, target, 'C:'+st.cur.root+st.cur.quality);
       return;
@@ -717,8 +752,8 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     }else if(st.mode==='letter'){
       wkEl.innerHTML='요즘 자주 틀리는 음이름: <b>'+ENGLISH[parseInt(raw,10)]+'</b>';
     }else{
-      const m=raw.match(/^(\d+)(major|minor)$/); if(!m){wkEl.textContent='';return}
-      wkEl.innerHTML='요즘 자주 틀리는 코드: <b>'+ENGLISH[parseInt(m[1],10)]+' '+(m[2]==='major'?'메이저':'마이너')+'</b>';
+      const m=raw.match(/^(\d+)([a-z0-9]+)$/); if(!m||!CHORDS[m[2]]){wkEl.textContent='';return}
+      wkEl.innerHTML='요즘 자주 틀리는 코드: <b>'+chordName(parseInt(m[1],10),m[2])+'</b>';
     }
   }
 
@@ -734,7 +769,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     }else if(st.mode==='letter'){
       hintEl.textContent='C D E F G A B 알파벳 음이름과 도레미파솔라시 계이름을 매칭하는 연습이에요(C=도, A=라).';
     }else{
-      hintEl.textContent='코드 이름(예: C 메이저)을 보고 구성음 3개를 건반에서 찾아 누르면 자동으로 채점돼요. 검은 건반도 코드에 맞게 써야 해요.';
+      hintEl.textContent='코드 이름(예: C 메이저)을 보고 구성음을 건반에서 찾아 누르면 자동으로 채점돼요. aug=근음·장3도·증5도, sus4=근음·4도·5도, add9=메이저+9도(4음). 검은 건반도 코드에 맞게 써야 해요.';
     }
   }
   function seg(id,prop,parse,extra){
