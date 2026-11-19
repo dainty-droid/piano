@@ -115,6 +115,34 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
 .only-staff[hidden],.only-chord[hidden]{display:none}
 .wkey[hidden],.bkey[hidden]{display:none}
 .mistake-list[hidden]{display:none}
+/* 2026-11-19 코드 사전(검색) */
+body.dict-mode .quiz-only{display:none!important}
+body:not(.dict-mode) .dict-only{display:none!important}
+.dict{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.dict input[type=text]{width:100%;font:inherit;font-size:17px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;
+  background:var(--bg);color:var(--ink);-webkit-user-select:text;user-select:text}
+.dict input[type=text]:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.dict-name{font-family:var(--display);font-size:40px;text-align:center;line-height:1.1;margin-top:2px}
+.dict-desc{text-align:center;font-size:12.5px;color:var(--muted);line-height:1.5}
+.dict-err{color:var(--bad);font-size:12.5px;text-align:center}
+.dict-err:empty{display:none}
+.tone-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.tone-chips span{background:var(--good-soft);color:var(--good);border-radius:10px;padding:4px 10px;font-size:12.5px;
+  display:flex;flex-direction:column;align-items:center;line-height:1.3;min-width:46px}
+.tone-chips span b{font-size:17px}
+.tone-chips span i{font-style:normal;font-size:11px;opacity:.85}
+.tone-chips span.root{background:var(--pick);color:var(--pick-ink)}
+.tone-chips span.bass{background:transparent;border:1px dashed var(--muted);color:var(--ink)}
+.dict-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center}
+.pick-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.q-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.pick-grid button,.q-grid button,.recent button{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  font:inherit;font-size:14px;padding:8px 2px;border-radius:8px;cursor:pointer}
+.pick-grid button[aria-pressed="true"],.q-grid button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent)}
+.q-label{font-size:12px;color:var(--muted);margin:2px 0 -4px}
+.recent{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.recent button{font-size:12.5px;padding:4px 10px;border-radius:999px}
+.recent:empty{display:none}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 </head>
@@ -128,18 +156,31 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     <button data-v="staff" aria-pressed="true" type="button">악보 읽기</button>
     <button data-v="letter" aria-pressed="false" type="button">음이름 매칭</button>
     <button data-v="chord" aria-pressed="false" type="button">코드 찾기</button>
+    <button data-v="dict" aria-pressed="false" type="button">코드 사전</button>
   </div>
-  <p class="goal-progress" id="goalProgress" hidden>
+  <p class="goal-progress quiz-only" id="goalProgress" hidden>
     <span>목표 <b id="goalText">0 / 0</b></span>
     <span class="goal-bar"><i id="goalBar" style="width:0%"></i></span>
   </p>
-  <div class="stats">
+  <div class="stats quiz-only">
     <div class="stat"><b id="sScore">0 / 0</b><span>맞힘 / 시도</span></div>
     <div class="stat"><b id="sRate">-</b><span>정답률</span></div>
     <div class="stat"><b id="sStreak">0</b><span>연속 정답</span></div>
     <div class="stat"><b id="sBest">0</b><span>최고 연속</span></div>
   </div>
-  <div class="card">
+  <div class="dict dict-only" id="dictTop">
+    <input type="text" id="dictInput" placeholder="코드 입력: CM7, B♭9, F#m7b5, 시플랫 메이저7" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+    <div class="dict-err" id="dictErr"></div>
+    <div class="dict-name" id="dictName">C</div>
+    <div class="dict-desc" id="dictDesc"></div>
+    <div class="tone-chips" id="dictTones"></div>
+    <div class="dict-actions">
+      <button class="btn-primary" id="dictPlayArp" type="button">🔊 한 음씩</button>
+      <button class="btn-plain" id="dictPlayChord" type="button">🎹 화음으로</button>
+      <div class="seg" id="dictInv"></div>
+    </div>
+  </div>
+  <div class="card quiz-only">
     <button class="replay" id="replay" type="button" title="다시 듣기" aria-label="다시 듣기">🔊</button>
     <div class="feedback" id="fb"></div>
     <svg id="staff" viewBox="0 0 320 190" role="img" aria-label="오선 위의 음표"></svg>
@@ -153,8 +194,20 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     <div class="whites" id="whites"></div>
     <div class="blacks" id="blacks"></div>
   </div>
-  <p class="weak" id="weak"></p>
-  <div class="mistakes">
+  <div class="dict dict-only" id="dictPick">
+    <div class="recent" id="dictRecent"></div>
+    <div class="q-label">근음</div>
+    <div class="pick-grid" id="dictRoots"></div>
+    <div class="q-label">3화음</div>
+    <div class="q-grid" id="dictQ_tri"></div>
+    <div class="q-label">6·7화음</div>
+    <div class="q-grid" id="dictQ_sev"></div>
+    <div class="q-label">텐션 (9·11·13)</div>
+    <div class="q-grid" id="dictQ_ten"></div>
+    <p class="hint">직접 쳐도 되고(CM7, Bb9, Am/C, 도 마이너, 시플랫 메이저7 …) 아래에서 근음 + 종류를 눌러 조합해도 돼요. 노란 건반이 근음이에요. 건반을 누르면 그 음이 나요.</p>
+  </div>
+  <p class="weak quiz-only" id="weak"></p>
+  <div class="mistakes quiz-only">
     <div class="mistakes-head">
       <b>오답노트</b>
       <button class="toggle-link" id="mistakeToggle" type="button">0개 보기</button>
@@ -162,7 +215,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     </div>
     <div class="mistake-list" id="mistakeList" hidden></div>
   </div>
-  <div class="mistakes">
+  <div class="mistakes quiz-only">
     <div class="mistakes-head">
       <b>연습 기록</b>
       <button class="toggle-link" id="sessionToggle" type="button">0개 보기</button>
@@ -170,7 +223,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     </div>
     <div class="mistake-list" id="sessionList" hidden></div>
   </div>
-  <div class="settings">
+  <div class="settings quiz-only">
     <div class="row only-staff" id="rowClef"><label>자리표</label>
       <div class="seg" id="segClef">
         <button data-v="bass" aria-pressed="true">낮은음</button>
@@ -342,7 +395,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     });
   }
   function relayoutKeyboard(mode){
-    const activeOctaves = mode==='chord' ? OCTAVES : 1;
+    const activeOctaves = (mode==='chord'||mode==='dict') ? OCTAVES : 1;
     const activeTotalWhite = activeOctaves*7+1;
     whitesWrap.style.gridTemplateColumns='repeat('+activeTotalWhite+',1fr)';
     whiteKeys.forEach(k=>{ k.btn.hidden = k.idx>=activeTotalWhite; });
@@ -454,6 +507,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     return a.root===b.root&&a.quality===b.quality;
   }
   function next(){
+    if(st.mode==='dict'){ clearKeyStyles(); renderDict(); return; }
     const p=pool().filter(n=>!sameItem(n,st.last));
     let tot=0; const w=p.map(n=>{const v=st.weights[keyOf(n)]||1;tot+=v;return v});
     let r=Math.random()*tot,i=0; while(i<w.length-1&&r>w[i]){r-=w[i];i++}
@@ -491,8 +545,8 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     const midi=12*(octave+1)+SEMI[letter]+acc;
     return 440*Math.pow(2,(midi-69)/12);
   }
-  function beep(freq, startOffset){
-    if(!st.sound)return; // 코드 찾기 모드의 건반 클릭음 등 - 여기서 한 번에 막아야
+  function beep(freq, startOffset, force){
+    if(!st.sound && !force)return; // force: 코드 사전에서 직접 누른 소리는 항상 낸다 // 코드 찾기 모드의 건반 클릭음 등 - 여기서 한 번에 막아야
     // (관리자님 리포트, 2026-10-17 - "코드 찾기에서 소리 껐는데도 소리가 나") 호출하는
     // 쪽마다 매번 st.sound를 체크 안 깜빡해도 안전함.
     try{
@@ -698,6 +752,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
 
   function pressKey(letter, acc, flatDeg, octave){
     octave = octave || 5;
+    if(st.mode==='dict'){ beep(toneFreq(letter,acc,octave),0,true); return; }
     if(st.locked || !st.cur)return;
     if(st.mode==='chord'){
       const target=chordFor(st.cur.root,st.cur.quality);
@@ -743,6 +798,200 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
     finish(ok, target, id);
   }
 
+  // ================= 코드 사전 (2026-11-19 관리자님 요청) =================
+  // 코드 이름을 치거나(CM7, Bb9, F#m7b5, Am/C, 도 마이너 …) 근음+종류를 눌러 조합하면
+  // 구성음 / 도수 / 건반 위치 / 소리를 보여준다. [음이름 칸 수, 반음 수] 형식은 CHORDS와 같다.
+  const T3={maj:[[0,0],[2,4],[4,7]], min:[[0,0],[2,3],[4,7]], dim:[[0,0],[2,3],[4,6]], aug:[[0,0],[2,4],[4,8]]};
+  const DICT_Q=[ // [키, 표시, 한글 설명, 구성, 그룹]
+    ['',     '',     '메이저',              T3.maj,'tri'],
+    ['m',    'm',    '마이너',              T3.min,'tri'],
+    ['dim',  'dim',  '디미니쉬',            T3.dim,'tri'],
+    ['aug',  'aug',  '어그먼트',            T3.aug,'tri'],
+    ['sus2', 'sus2', '서스 2',              [[0,0],[1,2],[4,7]],'tri'],
+    ['sus4', 'sus4', '서스 4',              [[0,0],[3,5],[4,7]],'tri'],
+    ['7',    '7',    '세븐(도미넌트)',      T3.maj.concat([[6,10]]),'sev'],
+    ['M7',   'M7',   '메이저 세븐',         T3.maj.concat([[6,11]]),'sev'],
+    ['m7',   'm7',   '마이너 세븐',         T3.min.concat([[6,10]]),'sev'],
+    ['mM7',  'mM7',  '마이너 메이저 세븐',  T3.min.concat([[6,11]]),'sev'],
+    ['m7b5', 'm7♭5', '하프 디미니쉬',       T3.dim.concat([[6,10]]),'sev'],
+    ['dim7', 'dim7', '디미니쉬 세븐',       T3.dim.concat([[6,9]]),'sev'],
+    ['7sus4','7sus4','세븐 서스 4',         [[0,0],[3,5],[4,7],[6,10]],'sev'],
+    ['aug7', 'aug7', '어그먼트 세븐',       T3.aug.concat([[6,10]]),'sev'],
+    ['6',    '6',    '식스',                T3.maj.concat([[5,9]]),'sev'],
+    ['m6',   'm6',   '마이너 식스',         T3.min.concat([[5,9]]),'sev'],
+    ['add9', 'add9', '애드 나인',           T3.maj.concat([[1,14]]),'ten'],
+    ['madd9','madd9','마이너 애드 나인',    T3.min.concat([[1,14]]),'ten'],
+    ['9',    '9',    '나인',                T3.maj.concat([[6,10],[1,14]]),'ten'],
+    ['M9',   'M9',   '메이저 나인',         T3.maj.concat([[6,11],[1,14]]),'ten'],
+    ['m9',   'm9',   '마이너 나인',         T3.min.concat([[6,10],[1,14]]),'ten'],
+    ['69',   '6/9',  '식스 나인',           T3.maj.concat([[5,9],[1,14]]),'ten'],
+    ['7b9',  '7♭9',  '세븐 플랫 나인',      T3.maj.concat([[6,10],[1,13]]),'ten'],
+    ['7#9',  '7♯9',  '세븐 샵 나인',        T3.maj.concat([[6,10],[1,15]]),'ten'],
+    ['11',   '11',   '일레븐',              T3.maj.concat([[6,10],[1,14],[3,17]]),'ten'],
+    ['m11',  'm11',  '마이너 일레븐',       T3.min.concat([[6,10],[1,14],[3,17]]),'ten'],
+    ['13',   '13',   '서틴 (11 생략)',      T3.maj.concat([[6,10],[1,14],[5,21]]),'ten'],
+    ['M13',  'M13',  '메이저 서틴 (11 생략)',T3.maj.concat([[6,11],[1,14],[5,21]]),'ten'],
+  ];
+  const DQ={}; DICT_Q.forEach(q=>{DQ[q[0]]={key:q[0],disp:q[1],kor:q[2],tones:q[3],group:q[4]}});
+  const DICT_ROOTS=[[0,0],[0,1],[1,0],[2,-1],[2,0],[3,0],[3,1],[4,0],[5,-1],[5,0],[6,-1],[6,0]]; // C C# D Eb E F F# G Ab A Bb B
+  const KOR_ROOT={'도':0,'레':1,'미':2,'파':3,'솔':4,'라':5,'시':6};
+  const engAcc=a=>a===2?'𝄪':a===1?'♯':a===-1?'♭':a===-2?'𝄫':'';
+  const rootName=(l,a)=>ENGLISH[l]+engAcc(a);
+
+  function degLabel(step,semi){
+    if(step===6&&semi===9) return '𝄫7';
+    return ({0:'1',2:'2',3:'♭3',4:'3',5:'4',6:'♭5',7:'5',8:'♯5',9:'6',10:'♭7',11:'7',13:'♭9',14:'9',15:'♯9',17:'11',21:'13'})[semi]||String(semi);
+  }
+  function canonQ(q){
+    q=q.replace(/[()]/g,'');
+    const L=q.toLowerCase();
+    const fixed={'°':'dim','o':'dim','°7':'dim7','o7':'dim7','ø':'m7b5','ø7':'m7b5','m7-5':'m7b5','-7b5':'m7b5','min7b5':'m7b5',
+      '+':'aug','+7':'aug7','7+':'aug7','7#5':'aug7','7+5':'aug7','sus':'sus4','7sus':'7sus4','add2':'add9','6/9':'69','dom7':'7',
+      'maj':'','major':'','min':'m','minor':'m','-':'m','madd9':'madd9','mmaj7':'mM7','minmaj7':'mM7','mmaj':'mM7','m/maj7':'mM7','-maj7':'mM7','-7':'m7','-9':'m9','-6':'m6'};
+    if(Object.prototype.hasOwnProperty.call(fixed,q)) return fixed[q];
+    if(Object.prototype.hasOwnProperty.call(fixed,L) && !/^M/.test(q)) return fixed[L];
+    if(DQ[q]) return q;
+    let m=q.match(/^(maj|Maj|MAJ|ma|Ma|MA|Δ|M)(.*)$/);
+    if(m){ const r=m[2]; if(r==='') return ''; if(DQ['M'+r]) return 'M'+r; if(DQ[r]) return r; }
+    m=q.match(/^(min|mi|-|m)(maj|Maj|M|Δ)(\d*)$/);
+    if(m) return (!m[3]||m[3]==='7')?'mM7':null;
+    m=q.match(/^(min|mi|-)(.*)$/);
+    if(m && DQ['m'+m[2]]) return 'm'+m[2];
+    const low=DICT_Q.find(x=>x[0]===x[0].toLowerCase() && x[0]===L);
+    if(low) return low[0];
+    return null;
+  }
+  function parseNoteToken(tok){
+    const m=tok.match(/^([A-Ga-g]|도|레|미|파|솔|라|시)([#b]{0,2})$/); if(!m) return null;
+    const letter=KOR_ROOT[m[1]]!==undefined?KOR_ROOT[m[1]]:'CDEFGAB'.indexOf(m[1].toUpperCase());
+    let acc=0; for(const c of m[2]) acc+= c==='#'?1:-1;
+    return {letter,acc};
+  }
+  function parseChord(raw){
+    let s=String(raw||'').trim(); if(!s) return null;
+    s=s.replace(/\s+/g,'').replace(/♭/g,'b').replace(/♯/g,'#')
+      .replace(/플랫/g,'b').replace(/샤프|샵|샾/g,'#')
+      .replace(/하프디미니쉬|하프디미니시/g,'m7b5').replace(/디미니쉬|디미니시/g,'dim').replace(/어그먼트|오그먼트/g,'aug')
+      .replace(/메이저|메이져/g,'maj').replace(/마이너/g,'min')
+      .replace(/세븐스?/g,'7').replace(/나인/g,'9').replace(/식스/g,'6').replace(/일레븐/g,'11').replace(/서틴/g,'13')
+      .replace(/서스/g,'sus').replace(/애드|에드/g,'add');
+    const m=s.match(/^([A-Ga-g]|도|레|미|파|솔|라|시)([#b]{0,2})(.*)$/);
+    if(!m) return {err:'근음(C~B 또는 도~시)으로 시작해야 해요'};
+    // "Bb" 다음에 b9 같은 게 붙는 건 드무니, 근음 뒤 b/#는 근음 쪽 기호로 본다 (예: Bbm7, Ebmaj7)
+    const root=parseNoteToken(m[1]+m[2]);
+    let rest=m[3], bass=null;
+    const bm=rest.match(/\/([A-Ga-g]|도|레|미|파|솔|라|시)([#b]{0,2})$/);
+    if(bm){ bass=parseNoteToken(bm[1]+bm[2]); rest=rest.slice(0,bm.index); }
+    const q=canonQ(rest);
+    if(q===null||!DQ[q]) return {err:'"'+rest+'" 는 모르는 코드 종류예요 (예: m, 7, M7, m7b5, sus4, 9, add9)'};
+    return {root:root.letter, acc:root.acc, q, bass};
+  }
+  function chordToneList(d){
+    const rootPc=((SEMI[d.root]+d.acc)%12+12)%12;
+    return DQ[d.q].tones.map(([step,semi])=>{
+      const letter=(d.root+step)%7;
+      let a=((rootPc+semi-SEMI[letter])%12+12)%12; if(a>6)a-=12;
+      return {letter, acc:a, step, semi};
+    });
+  }
+  // 건반(도5~도7, 0~24반음) 위 위치. 자리바꿈(inv)은 아래 음부터 한 옥타브 올린다.
+  function dictVoicing(d){
+    const rootPc=((SEMI[d.root]+d.acc)%12+12)%12;
+    let abs=DQ[d.q].tones.map(t=>rootPc+t[1]).sort((a,b)=>a-b);
+    for(let i=0;i<(d.inv||0)&&i<abs.length;i++) abs[i]+=12;
+    let bassAbs=null;
+    if(d.bass){
+      bassAbs=((SEMI[d.bass.letter]+d.bass.acc)%12+12)%12;
+      abs=abs.map(a=>{ while(a<=bassAbs) a+=12; return a; });
+    }
+    const all=abs.concat(bassAbs!==null?[bassAbs]:[]);
+    while(Math.max.apply(null,all)>24 && Math.min.apply(null,all)>=12){ for(let i=0;i<abs.length;i++)abs[i]-=12; if(bassAbs!==null)bassAbs-=12; all.length=0; abs.forEach(a=>all.push(a)); if(bassAbs!==null)all.push(bassAbs); }
+    abs=abs.map(a=>{ while(a>24) a-=12; return a; });
+    return {abs, bassAbs, rootAbs:abs.filter(a=>a%12===rootPc)};
+  }
+  function lightAbs(a,cls){
+    if(a<0||a>24) return;
+    const oct=Math.floor(a/12), pc=a%12;
+    if(WHITE_BY_PC[pc]!==undefined){ const k=whiteKeys[oct*7+WHITE_BY_PC[pc]]; if(k)k.btn.classList.add(cls); return; }
+    const g=GAP_PATTERN.find(x=>SEMI[x.sharp]+1===pc);
+    const bk=g&&blackKeys.find(k=>k.oct===oct&&k.sharpDeg===g.sharp); if(bk)bk.btn.classList.add(cls);
+  }
+  const dict=Object.assign({root:0,acc:0,q:'',bass:null,inv:0}, load('nq_dict',{}));
+  const dictName=d=>rootName(d.root,d.acc)+DQ[d.q].disp+(d.bass?'/'+rootName(d.bass.letter,d.bass.acc):'');
+  function dictFreq(a){ return 440*Math.pow(2,(72+a-69)/12); }
+  function dictPlay(together){
+    const v=dictVoicing(dict);
+    const notes=(v.bassAbs!==null?[v.bassAbs]:[]).concat(v.abs.slice().sort((a,b)=>a-b));
+    notes.forEach((a,i)=>beep(dictFreq(a), together?0:i*0.24, true));
+  }
+  function renderDict(){
+    if(!DQ[dict.q]) dict.q='';
+    const tones=chordToneList(dict);
+    document.getElementById('dictName').textContent=dictName(dict);
+    document.getElementById('dictDesc').textContent=rootName(dict.root,dict.acc)+' '+DQ[dict.q].kor+
+      (dict.bass?' · 베이스 '+rootName(dict.bass.letter,dict.bass.acc):'')+' · 구성 '+tones.map(t=>degLabel(t.step,t.semi)).join(' ');
+    const wrap=document.getElementById('dictTones'); wrap.innerHTML='';
+    const chip=(eng,kor,deg,cls)=>{ const sp=document.createElement('span'); if(cls)sp.className=cls;
+      const b=document.createElement('b'); b.textContent=eng; const k=document.createElement('small'); k.textContent=kor;
+      const i=document.createElement('i'); i.textContent=deg; sp.appendChild(b); sp.appendChild(k); sp.appendChild(i); wrap.appendChild(sp); };
+    if(dict.bass) chip(rootName(dict.bass.letter,dict.bass.acc), noteLabel(dict.bass.letter,dict.bass.acc), '베이스', 'bass');
+    tones.forEach(t=>chip(rootName(t.letter,t.acc), noteLabel(t.letter,t.acc), degLabel(t.step,t.semi), t.semi===0?'root':''));
+    // 건반
+    clearKeyStyles();
+    const v=dictVoicing(dict), rootPc=((SEMI[dict.root]+dict.acc)%12+12)%12;
+    v.abs.forEach(a=>lightAbs(a, a%12===rootPc?'on':'reveal'));
+    if(v.bassAbs!==null) lightAbs(v.bassAbs, v.bassAbs%12===rootPc?'on':'reveal');
+    // 자리바꿈 버튼 (3~4음 코드, 슬래시 코드 아닐 때)
+    const invEl=document.getElementById('dictInv'); invEl.innerHTML='';
+    if(!dict.bass && tones.length<=4){
+      if((dict.inv||0)>=tones.length) dict.inv=0;
+      ['기본형','1전위','2전위','3전위'].slice(0,tones.length).forEach((lb,i)=>{
+        const b=document.createElement('button'); b.type='button'; b.textContent=lb; b.setAttribute('aria-pressed',String((dict.inv||0)===i));
+        b.addEventListener('click',()=>{ dict.inv=i; saveDict(); renderDict(); dictPlay(false); });
+        invEl.appendChild(b);
+      });
+    }
+    // 고르기 버튼 상태
+    document.querySelectorAll('#dictRoots button').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.l===dict.root&&+b.dataset.a===dict.acc)));
+    document.querySelectorAll('.q-grid button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.q===dict.q)));
+    renderRecent();
+  }
+  function saveDict(){ save('nq_dict',dict); }
+  function pushRecent(){
+    const n=dictName(dict); let r=load('nq_dict_recent',[]).filter(x=>x!==n); r.unshift(n); save('nq_dict_recent',r.slice(0,8));
+  }
+  function renderRecent(){
+    const el=document.getElementById('dictRecent'); el.innerHTML='';
+    const r=load('nq_dict_recent',[]); if(!r.length) return;
+    const lb=document.createElement('span'); lb.className='q-label'; lb.style.margin='0 4px 0 0'; lb.textContent='최근'; el.appendChild(lb);
+    r.forEach(n=>{ const b=document.createElement('button'); b.type='button'; b.textContent=n;
+      b.addEventListener('click',()=>{ const p=parseChord(n); if(p&&!p.err){ applyParsed(p); document.getElementById('dictInput').value=n; dictPlay(false);} });
+      el.appendChild(b); });
+  }
+  function applyParsed(p){ dict.root=p.root; dict.acc=p.acc; dict.q=p.q; dict.bass=p.bass; dict.inv=0; saveDict(); renderDict(); }
+  (function buildDictUI(){
+    const rootsEl=document.getElementById('dictRoots');
+    DICT_ROOTS.forEach(([l,a])=>{ const b=document.createElement('button'); b.type='button'; b.textContent=rootName(l,a); b.dataset.l=l; b.dataset.a=a;
+      b.addEventListener('click',()=>{ dict.root=l; dict.acc=a; dict.bass=null; dict.inv=0; saveDict(); document.getElementById('dictInput').value=dictName(dict);
+        document.getElementById('dictErr').textContent=''; renderDict(); pushRecent(); renderRecent(); dictPlay(false); });
+      rootsEl.appendChild(b); });
+    DICT_Q.forEach(q=>{ const b=document.createElement('button'); b.type='button'; b.textContent=q[1]||'M (메이저)'; b.dataset.q=q[0]; b.title=q[2];
+      b.addEventListener('click',()=>{ dict.q=q[0]; dict.inv=0; saveDict(); document.getElementById('dictInput').value=dictName(dict);
+        document.getElementById('dictErr').textContent=''; renderDict(); pushRecent(); renderRecent(); dictPlay(false); });
+      document.getElementById('dictQ_'+q[4]).appendChild(b); });
+    const inp=document.getElementById('dictInput'), errEl=document.getElementById('dictErr');
+    inp.addEventListener('input',()=>{
+      const p=parseChord(inp.value);
+      if(!p){ errEl.textContent=''; return; }
+      if(p.err){ errEl.textContent=p.err; return; }
+      errEl.textContent=''; applyParsed(p);
+    });
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const p=parseChord(inp.value); if(p&&!p.err){ pushRecent(); renderRecent(); dictPlay(false); inp.blur(); } } });
+    document.getElementById('dictPlayArp').addEventListener('click',()=>dictPlay(false));
+    document.getElementById('dictPlayChord').addEventListener('click',()=>dictPlay(true));
+    inp.value=dictName(dict);
+  })();
+
   function stats(){
     document.getElementById('sScore').textContent=st.right+' / '+st.total;
     document.getElementById('sRate').textContent= st.total? Math.round(st.right/st.total*100)+'%' : '-';
@@ -770,6 +1019,7 @@ h1{font-family:var(--display);font-weight:400;font-size:28px;margin:0;letter-spa
   document.getElementById('replay').addEventListener('click',playCurrent);
 
   function applyModeVisibility(){
+    document.body.classList.toggle('dict-mode', st.mode==='dict');
     document.querySelectorAll('.only-staff').forEach(e=>e.hidden = st.mode!=='staff');
     document.querySelectorAll('.only-chord').forEach(e=>e.hidden = st.mode!=='chord');
     relayoutKeyboard(st.mode);

@@ -2,7 +2,7 @@
 // 온라인이면 항상 서버에서 새로 받고(받은 건 캐시에 갱신), 통신이 안 되거나 3초 넘게
 // 응답이 없을 때만 캐시로 연다. 예전 캐시 우선 방식은 새 버전이 바로 안 떠서 바꿈.
 // (주의: PowerShell Get-Content/Set-Content로 고치지 말 것 - 한글 주석이 깨짐)
-const CACHE = 'note-quiz-v9';
+const CACHE = 'note-quiz-v10';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 const NET_TIMEOUT_MS = 3000;
 
