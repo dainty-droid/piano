@@ -920,9 +920,9 @@ body:not(.dict-mode) .dict-only{display:none!important}
   const dict=Object.assign({root:0,acc:0,q:'',bass:null,inv:0}, load('nq_dict',{}));
   const dictName=d=>rootName(d.root,d.acc)+DQ[d.q].disp+(d.bass?'/'+rootName(d.bass.letter,d.bass.acc):'');
   function dictFreq(a){ return 440*Math.pow(2,(72+a-69)/12); }
-  // manual=true: 재생 버튼을 직접 누른 경우 → 소리 꺼놔도 들려줌. 그 외(코드 고르기·자리바꿈 자동재생)는 소리 끔이면 조용히
-  function dictPlay(together, manual){
-    if(dict.sound===false && !manual) return;
+  // 소리 끔이면 자동재생·재생 버튼·건반음 전부 무음
+  function dictPlay(together){
+    if(dict.sound===false) return;
     const v=dictVoicing(dict);
     const notes=(v.bassAbs!==null?[v.bassAbs]:[]).concat(v.abs.slice().sort((a,b)=>a-b));
     notes.forEach((a,i)=>beep(dictFreq(a), together?0:i*0.24, true));
@@ -990,10 +990,11 @@ body:not(.dict-mode) .dict-only{display:none!important}
       errEl.textContent=''; applyParsed(p);
     });
     inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const p=parseChord(inp.value); if(p&&!p.err){ pushRecent(); renderRecent(); dictPlay(false); inp.blur(); } } });
-    document.getElementById('dictPlayArp').addEventListener('click',()=>dictPlay(false,true));
-    document.getElementById('dictPlayChord').addEventListener('click',()=>dictPlay(true,true));
+    document.getElementById('dictPlayArp').addEventListener('click',()=>dictPlay(false));
+    document.getElementById('dictPlayChord').addEventListener('click',()=>dictPlay(true));
     const sndBtn=document.getElementById('dictSound');
-    const paintSnd=()=>{ const on=dict.sound!==false; sndBtn.textContent=on?'🔈 소리 켬':'🔇 소리 끔'; sndBtn.setAttribute('aria-pressed',String(!on)); };
+    const paintSnd=()=>{ const on=dict.sound!==false; sndBtn.textContent=on?'🔈 소리 켬':'🔇 소리 끔'; sndBtn.setAttribute('aria-pressed',String(!on));
+      ['dictPlayArp','dictPlayChord'].forEach(id=>{ const b=document.getElementById(id); b.disabled=!on; b.style.opacity=on?'':'0.4'; }); };
     sndBtn.addEventListener('click',()=>{ dict.sound=(dict.sound===false); saveDict(); paintSnd(); });
     paintSnd();
     inp.value=dictName(dict);
